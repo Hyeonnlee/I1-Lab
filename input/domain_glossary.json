@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "제조 현장 도메인 용어집",
+    "last_updated": "2025-12-10T13:56:46.432932"
+  },
+  "terms": {
+    "metrics": {
+      "수율": "YIELD",
+      "생산량": "PRODUCTION_VOLUME",
+      "불량률": "DEFECT_RATE"
+    },
+    "equipment": {
+      "1호기": "EQUIPMENT_M01",
+      "2호기": "EQUIPMENT_M02",
+      "3호기": "EQUIPMENT_M03"
+    },
+    "time_expressions": {
+      "지난주": "LAST_WEEK",
+      "이번주": "THIS_WEEK"
+    },
+    "intents": {
+      "왜 떨어졌어": "ANOMALY_ANALYSIS",
+      "알려줘": "DATA_RETRIEVAL",
+      "보여줘": "DATA_RETRIEVAL"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-10T14:02:52.281132",
+    "model": "mistralai/Mistral-7B-Instruct-v0.2",
+    "api_method": "chat_completion",
+    "total_queries": 1,
+    "glossary_terms": 11
+  },
+  "results": [
+    {
+      "query_id": 1,
+      "original_query": "지난 3개월 동안 A라인의 불량률 추세를 보여줘. 그리고 원인 가능성이 높은 변수도 알려줘",
+      "normalized_result": {
+        "intent": "ANOMALY_ANALYSIS",
+        "metric": "DEFECT_RATE",
+        "time_frame": {
+          "type": "ABSOLUTE",
+          "value": "LAST_3_MONTHS"
+        },
+        "filter": {
+          "field": "LINE_ID",
+          "value": "A"
+        }
+      },
+      "timestamp": "2025-12-10T14:02:49.130276"
+    }
+  ]
+}
