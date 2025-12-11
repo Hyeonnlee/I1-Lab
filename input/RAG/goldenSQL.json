@@ -1,0 +1,72 @@
+[
+  {
+    "question": "지난 30일간 라인별 OEE 추이를 보여줘",
+    "intent": "추이",
+    "category": "설비효율",
+    "complexity": "medium",
+    "patterns": ["GROUP BY", "DATE_TRUNC", "다중 계산"],
+    "sql": "SELECT \n  DATE_TRUNC('day', timestamp) AS date,\n  line_id,\n  (SUM(actual_runtime)::FLOAT / NULLIF(SUM(planned_runtime), 0)) * \n  (SUM(actual_output)::FLOAT / NULLIF(SUM(standard_output), 0)) * \n  (SUM(good_output)::FLOAT / NULLIF(SUM(actual_output), 0)) * 100 AS oee\nFROM production_data\nWHERE timestamp >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY DATE_TRUNC('day', timestamp), line_id\nORDER BY date, line_id",
+    "explanation": "OEE는 가동률, 성능률, 양품률의 곱으로 계산됩니다. NULLIF를 사용하여 0으로 나누는 것을 방지합니다.",
+    "notes": "날짜별로 GROUP BY하여 추이를 확인할 수 있습니다."
+  },
+  {
+    "question": "이번 주 설비별 고장 횟수와 평균 수리 시간",
+    "intent": "비교",
+    "category": "설비신뢰성",
+    "complexity": "medium",
+    "patterns": ["GROUP BY", "COUNT", "AVG", "DATE_TRUNC"],
+    "sql": "SELECT \n  equipment_id,\n  equipment_name,\n  COUNT(DISTINCT failure_id) AS failure_count,\n  AVG(EXTRACT(EPOCH FROM (repair_end - repair_start)) / 3600) AS avg_repair_hours\nFROM equipment_failures ef\nJOIN equipment e ON ef.equipment_id = e.id\nWHERE DATE_TRUNC('week', failure_date) = DATE_TRUNC('week', CURRENT_DATE)\nGROUP BY equipment_id, equipment_name\nORDER BY failure_count DESC",
+    "explanation": "주간 단위로 설비별 고장 횟수와 평균 수리 시간을 집계합니다.",
+    "notes": "EXTRACT(EPOCH)를 사용하여 시간 차이를 초 단위로 변환한 후 시간 단위로 나눕니다."
+  },
+  {
+    "question": "상위 10개 불량 유형과 발생 빈도",
+    "intent": "비교",
+    "category": "품질",
+    "complexity": "low",
+    "patterns": ["GROUP BY", "ORDER BY", "LIMIT"],
+    "sql": "SELECT \n  defect_type,\n  COUNT(*) AS occurrence_count,\n  SUM(defect_quantity) AS total_defects,\n  ROUND(AVG(defect_quantity), 2) AS avg_defects_per_occurrence\nFROM quality_defects\nWHERE date >= CURRENT_DATE - INTERVAL '90 days'\nGROUP BY defect_type\nORDER BY total_defects DESC\nLIMIT 10",
+    "explanation": "파레토 분석을 위해 상위 불량 유형을 식별합니다.",
+    "notes": "80/20 법칙에 따라 상위 20%의 불량 유형이 전체 불량의 80%를 차지할 가능성이 높습니다."
+  },
+  {
+    "question": "제품별 월별 생산량과 수율 추이",
+    "intent": "추이",
+    "category": "생산성",
+    "complexity": "medium",
+    "patterns": ["GROUP BY", "DATE_TRUNC", "계산 필드"],
+    "sql": "SELECT \n  DATE_TRUNC('month', production_date) AS month,\n  product_id,\n  product_name,\n  SUM(total_output) AS total_production,\n  SUM(good_output) AS good_production,\n  ROUND((SUM(good_output)::FLOAT / NULLIF(SUM(total_output), 0)) * 100, 2) AS yield_rate\nFROM production_records pr\nJOIN products p ON pr.product_id = p.id\nWHERE production_date >= CURRENT_DATE - INTERVAL '12 months'\nGROUP BY DATE_TRUNC('month', production_date), product_id, product_name\nORDER BY month DESC, product_id",
+    "explanation": "월별로 제품별 생산량과 수율을 추적합니다.",
+    "notes": "수율 트렌드를 모니터링하여 품질 개선 기회를 식별할 수 있습니다."
+  },
+  {
+    "question": "특정 기간 동안 공정별 병목 구간 분석",
+    "intent": "분석",
+    "category": "공정분석",
+    "complexity": "high",
+    "patterns": ["WINDOW FUNCTION", "LAG", "CASE"],
+    "sql": "WITH process_times AS (\n  SELECT \n    work_order_id,\n    process_step,\n    start_time,\n    end_time,\n    EXTRACT(EPOCH FROM (end_time - start_time)) / 3600 AS duration_hours,\n    LAG(end_time) OVER (PARTITION BY work_order_id ORDER BY start_time) AS prev_end_time\n  FROM process_logs\n  WHERE start_time >= CURRENT_DATE - INTERVAL '30 days'\n),\nwaiting_times AS (\n  SELECT \n    work_order_id,\n    process_step,\n    duration_hours,\n    CASE \n      WHEN prev_end_time IS NOT NULL \n      THEN EXTRACT(EPOCH FROM (start_time - prev_end_time)) / 3600\n      ELSE 0\n    END AS wait_time_hours\n  FROM process_times\n)\nSELECT \n  process_step,\n  COUNT(*) AS order_count,\n  ROUND(AVG(duration_hours), 2) AS avg_process_time,\n  ROUND(AVG(wait_time_hours), 2) AS avg_wait_time,\n  ROUND(AVG(duration_hours + wait_time_hours), 2) AS avg_total_time\nFROM waiting_times\nGROUP BY process_step\nORDER BY avg_total_time DESC",
+    "explanation": "각 공정 단계의 처리 시간과 대기 시간을 분석하여 병목 구간을 식별합니다.",
+    "notes": "LAG 윈도우 함수를 사용하여 이전 공정의 종료 시간을 참조하고, 대기 시간을 계산합니다."
+  },
+  {
+    "question": "라인별 시간대별 생산량 히트맵 데이터",
+    "intent": "분포",
+    "category": "생산성",
+    "complexity": "medium",
+    "patterns": ["EXTRACT", "GROUP BY", "PIVOT"],
+    "sql": "SELECT \n  line_id,\n  EXTRACT(HOUR FROM timestamp) AS hour_of_day,\n  ROUND(AVG(hourly_output), 0) AS avg_output\nFROM production_data\nWHERE timestamp >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY line_id, EXTRACT(HOUR FROM timestamp)\nORDER BY line_id, hour_of_day",
+    "explanation": "시간대별 생산 패턴을 분석하여 최적 생산 시간대를 식별합니다.",
+    "notes": "이 데이터를 히트맵으로 시각화하면 생산 패턴을 쉽게 파악할 수 있습니다."
+  },
+  {
+    "question": "설비별 예방정비 준수율과 고장 상관관계",
+    "intent": "상관관계",
+    "category": "설비관리",
+    "complexity": "high",
+    "patterns": ["LEFT JOIN", "CASE", "계산 필드", "상관관계"],
+    "sql": "WITH maintenance_compliance AS (\n  SELECT \n    equipment_id,\n    COUNT(CASE WHEN completed_on_time = true THEN 1 END)::FLOAT / \n    NULLIF(COUNT(*), 0) * 100 AS compliance_rate\n  FROM preventive_maintenance\n  WHERE scheduled_date >= CURRENT_DATE - INTERVAL '12 months'\n  GROUP BY equipment_id\n),\nfailure_stats AS (\n  SELECT \n    equipment_id,\n    COUNT(*) AS failure_count,\n    SUM(downtime_hours) AS total_downtime\n  FROM equipment_failures\n  WHERE failure_date >= CURRENT_DATE - INTERVAL '12 months'\n  GROUP BY equipment_id\n)\nSELECT \n  e.equipment_id,\n  e.equipment_name,\n  COALESCE(mc.compliance_rate, 0) AS pm_compliance_rate,\n  COALESCE(fs.failure_count, 0) AS failure_count,\n  COALESCE(fs.total_downtime, 0) AS total_downtime_hours\nFROM equipment e\nLEFT JOIN maintenance_compliance mc ON e.equipment_id = mc.equipment_id\nLEFT JOIN failure_stats fs ON e.equipment_id = fs.equipment_id\nORDER BY pm_compliance_rate DESC",
+    "explanation": "예방정비 준수율과 설비 고장 간의 관계를 분석합니다.",
+    "notes": "일반적으로 예방정비 준수율이 높을수록 고장 빈도가 낮아집니다."
+  }
+]
