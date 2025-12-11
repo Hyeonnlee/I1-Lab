@@ -55,13 +55,15 @@ class ReportGeneratorAgent:
 
 경영진이 빠르게 이해하고 의사결정할 수 있도록 명확하고 간결하게 한국어로 작성해주세요."""
 
-        response = self.client.text_generation(
-            prompt,
+        messages = [{"role": "user", "content": prompt}]
+        
+        response = self.client.chat_completion(
+            messages=messages,
             model=self.model_id,
-            max_new_tokens=1024,
+            max_tokens=1024,
             temperature=0.4,
         )
-        return response
+        return response.choices[0].message.content
     
     def generate_technical_report(self, results: Dict[str, str]) -> str:
         """기술팀을 위한 상세 리포트 생성"""
@@ -94,13 +96,15 @@ class ReportGeneratorAgent:
 
 기술팀이 바로 실행에 옮길 수 있도록 구체적이고 실용적으로 한국어로 작성해주세요."""
 
-        response = self.client.text_generation(
-            prompt,
+        messages = [{"role": "user", "content": prompt}]
+        
+        response = self.client.chat_completion(
+            messages=messages,
             model=self.model_id,
-            max_new_tokens=1536,
+            max_tokens=1536,
             temperature=0.4,
         )
-        return response
+        return response.choices[0].message.content
     
     def generate_action_plan(self, results: Dict[str, str]) -> str:
         """액션 플랜 생성"""
@@ -137,13 +141,15 @@ class ReportGeneratorAgent:
 
 각 주차별로 구체적이고 실행 가능한 계획을 한국어로 작성해주세요."""
 
-        response = self.client.text_generation(
-            prompt,
+        messages = [{"role": "user", "content": prompt}]
+        
+        response = self.client.chat_completion(
+            messages=messages,
             model=self.model_id,
-            max_new_tokens=1024,
+            max_tokens=1024,
             temperature=0.5,
         )
-        return response
+        return response.choices[0].message.content
     
     def generate_markdown_report(self, results: Dict[str, str]) -> str:
         """Markdown 형식의 종합 리포트 생성"""
