@@ -1,0 +1,250 @@
+{
+  "work_logs": [
+    {
+      "id": "WL-2024-001",
+      "date": "2024-03-15",
+      "shift": "주간",
+      "line": "라인-A",
+      "operator": "김철수",
+      "content": "오전 10시 30분경 컨베이어 벨트 속도 저하 발생. 평소 분당 45개 생산에서 32개로 감소. 점검 결과 구동 모터 과열로 인한 자동 감속 기능 작동 확인. 냉각 팬 먼지 제거 후 정상 복구. 생산량 손실 약 130개 추정.",
+      "tags": ["생산량감소", "설비이상", "모터과열"],
+      "metrics_affected": ["production_rate", "temperature"],
+      "timestamp": "2024-03-15T10:30:00Z"
+    },
+    {
+      "id": "WL-2024-002",
+      "date": "2024-03-16",
+      "shift": "야간",
+      "line": "라인-B",
+      "operator": "이영희",
+      "content": "자정 무렵 원자재 공급 지연으로 라인 가동 중단 45분. 물류팀 확인 결과 지게차 고장으로 원자재 이동 불가. 임시로 수동 운반 실시하여 재가동. 야간 생산 목표 미달성.",
+      "tags": ["원자재부족", "물류지연", "생산중단"],
+      "metrics_affected": ["production_rate", "downtime"],
+      "timestamp": "2024-03-16T00:15:00Z"
+    },
+    {
+      "id": "WL-2024-003",
+      "date": "2024-03-18",
+      "shift": "주간",
+      "line": "라인-A",
+      "operator": "박민수",
+      "content": "오후 2시경 제품 불량률 급증. 일반적으로 0.5% 수준에서 3.2%로 상승. 육안 검사 결과 표면 거칠기 불량 확인. 금형 온도 설정값이 220도에서 195도로 변경되어 있음을 발견. 전날 야간 작업자가 실수로 변경한 것으로 추정. 온도 재조정 후 불량률 정상화.",
+      "tags": ["품질이상", "불량률증가", "설정오류"],
+      "metrics_affected": ["defect_rate", "temperature"],
+      "timestamp": "2024-03-18T14:00:00Z"
+    },
+    {
+      "id": "WL-2024-004",
+      "date": "2024-03-20",
+      "shift": "주간",
+      "line": "라인-C",
+      "operator": "최지훈",
+      "content": "오전 11시 전력 소비량 급증 감지. 평소 대비 40% 증가. 확인 결과 에어컴프레서 공기 누출로 인한 과부하 작동 확인. 배관 연결부 노후화로 공기 누출 발생. 긴급 수리 완료 후 전력 소비 정상화.",
+      "tags": ["에너지이상", "설비노후", "공기누출"],
+      "metrics_affected": ["power_consumption", "pressure"],
+      "timestamp": "2024-03-20T11:00:00Z"
+    }
+  ],
+  "maintenance_logs": [
+    {
+      "id": "ML-2024-015",
+      "date": "2024-03-14",
+      "equipment": "프레스-A01",
+      "type": "예방정비",
+      "technician": "정비팀 강동원",
+      "content": "정기 점검 중 유압 실린더 오일 누유 발견. 씰 링 교체 작업 수행. 교체 전 압력 불안정 현상 있었으며 이로 인해 최근 2주간 생산 속도 미세하게 감소했을 것으로 판단됨. 교체 후 압력 안정화 확인.",
+      "parts_replaced": ["유압씰링", "오일필터"],
+      "downtime_minutes": 120,
+      "tags": ["예방정비", "유압이상", "부품교체"],
+      "metrics_affected": ["pressure", "production_rate"],
+      "timestamp": "2024-03-14T09:00:00Z"
+    },
+    {
+      "id": "ML-2024-016",
+      "date": "2024-03-17",
+      "equipment": "CNC-B03",
+      "type": "긴급수리",
+      "technician": "정비팀 이동욱",
+      "content": "스핀들 베어링 소음 증가로 긴급 점검 실시. 베어링 마모 확인되어 교체 작업 진행. 최근 1주일간 진동 센서 수치가 점진적으로 상승한 것과 연관됨. 베어링 교체로 진동 수치 정상 범위로 복귀.",
+      "parts_replaced": ["스핀들베어링"],
+      "downtime_minutes": 180,
+      "tags": ["긴급수리", "베어링마모", "진동이상"],
+      "metrics_affected": ["vibration", "downtime"],
+      "timestamp": "2024-03-17T13:30:00Z"
+    },
+    {
+      "id": "ML-2024-017",
+      "date": "2024-03-19",
+      "equipment": "로봇암-C02",
+      "type": "정기점검",
+      "technician": "정비팀 김태희",
+      "content": "6개월 주기 정기 점검. 서보 모터 엔코더 신호 간헐적 불안정 발견. 케이블 커넥터 접촉 불량 확인하여 재조립. 이로 인해 최근 위치 정확도가 0.02mm에서 0.08mm로 저하되었던 것으로 분석. 수리 후 정밀도 0.01mm로 개선.",
+      "parts_replaced": [],
+      "downtime_minutes": 90,
+      "tags": ["정기점검", "위치정확도", "케이블이상"],
+      "metrics_affected": ["positioning_accuracy"],
+      "timestamp": "2024-03-19T08:00:00Z"
+    }
+  ],
+  "meeting_minutes": [
+    {
+      "id": "MM-2024-008",
+      "date": "2024-03-13",
+      "title": "주간 생산회의",
+      "attendees": ["생산팀장 박성훈", "품질팀장 김미영", "정비팀장 이준호"],
+      "content": "금주 생산 계획 논의. 3월 15일부터 신제품 시험 생산 예정으로 라인-A 설비 일부 조정 필요. 설비 조정 과정에서 일시적 생산량 감소 예상됨. 또한 원자재 공급업체 변경으로 인한 품질 모니터링 강화 결정. 초기 불량률 상승 가능성 있어 검사 빈도 2배 증가 예정.",
+      "decisions": [
+        "라인-A 설비 조정: 3/15-3/17",
+        "품질 검사 빈도 증가: 시간당 1회 -> 30분당 1회",
+        "신제품 목표 생산량: 일 500개"
+      ],
+      "tags": ["생산계획", "신제품", "품질관리"],
+      "metrics_affected": ["production_rate", "defect_rate"],
+      "timestamp": "2024-03-13T14:00:00Z"
+    },
+    {
+      "id": "MM-2024-009",
+      "date": "2024-03-19",
+      "title": "에너지 절감 대책 회의",
+      "attendees": ["공장장 최재석", "설비팀장 오민정", "생산팀장 박성훈"],
+      "content": "최근 전력 비용 상승에 따른 절감 방안 논의. 3월 20일부터 비가동 시간대 조명 50% 감축, 컴프레서 가동 스케줄 최적화 실시 결정. 다만 이번 주 라인-C 컴프레서 공기 누출로 인해 일시적으로 전력 소비 증가한 상태. 수리 완료 후 절감 효과 모니터링 예정.",
+      "decisions": [
+        "비가동 시간 조명 50% 감축",
+        "컴프레서 가동 시간 조정",
+        "에너지 모니터링 주간 리포트 작성"
+      ],
+      "tags": ["에너지절감", "비용절감", "설비최적화"],
+      "metrics_affected": ["power_consumption"],
+      "timestamp": "2024-03-19T10:00:00Z"
+    }
+  ],
+  "emails": [
+    {
+      "id": "EM-2024-042",
+      "date": "2024-03-16",
+      "from": "구매팀 한지민",
+      "to": "생산팀 박성훈",
+      "subject": "원자재 입고 지연 안내",
+      "content": "안녕하세요. 3월 16일 입고 예정이었던 A-type 원자재가 공급업체 물류 차질로 인해 4시간 지연되어 오후 6시 입고 예정입니다. 야간 조업 시작 시간에 영향이 있을 것으로 예상되니 생산 계획 조정 부탁드립니다. 추가로 다음 주 공급분은 정상 일정으로 진행됩니다.",
+      "tags": ["원자재지연", "물류차질", "일정조정"],
+      "metrics_affected": ["production_rate", "inventory"],
+      "timestamp": "2024-03-16T14:30:00Z"
+    },
+    {
+      "id": "EM-2024-043",
+      "date": "2024-03-18",
+      "from": "품질팀 김미영",
+      "to": "생산팀 전체",
+      "subject": "금형 온도 설정 주의사항",
+      "content": "금일 라인-A에서 금형 온도 설정 오류로 인한 불량률 증가 사례가 발생했습니다. 모든 작업자분들께서는 교대 시 반드시 금형 온도가 220±5도로 설정되어 있는지 확인 부탁드립니다. 특히 야간 근무 시 실수가 발생하기 쉬우니 체크리스트 작성을 의무화하겠습니다. 관련 교육은 3월 22일 실시 예정입니다.",
+      "tags": ["품질관리", "설정오류", "작업자교육"],
+      "metrics_affected": ["defect_rate", "temperature"],
+      "timestamp": "2024-03-18T16:45:00Z"
+    },
+    {
+      "id": "EM-2024-044",
+      "date": "2024-03-21",
+      "from": "정비팀 이준호",
+      "to": "공장장 최재석",
+      "subject": "설비 노후화 현황 및 교체 계획",
+      "content": "라인-C 에어컴프레서 배관 노후화로 인한 공기 누출 수리를 완료했습니다. 하지만 해당 설비는 가동 10년이 경과하여 유사한 문제가 재발할 가능성이 높습니다. 향후 3개월 내 전체 배관 교체를 권고드리며, 예산은 약 1,500만원 소요 예상됩니다. 교체 전까지 주간 점검을 강화하여 모니터링하겠습니다.",
+      "tags": ["설비노후", "예방정비", "예산계획"],
+      "metrics_affected": ["power_consumption", "maintenance_cost"],
+      "timestamp": "2024-03-21T11:20:00Z"
+    }
+  ],
+  "anomaly_annotations": [
+    {
+      "id": "AN-2024-001",
+      "metric": "production_rate",
+      "line": "라인-A",
+      "timestamp": "2024-03-15T10:30:00Z",
+      "anomaly_type": "급감",
+      "value_before": 45,
+      "value_after": 32,
+      "unit": "개/분",
+      "related_documents": ["WL-2024-001"],
+      "context": "컨베이어 벨트 구동 모터 과열로 인한 자동 감속 기능 작동. 냉각 팬 먼지 제거 후 복구.",
+      "root_cause": "설비 과열",
+      "action_taken": "냉각 팬 청소 및 점검",
+      "resolved": true
+    },
+    {
+      "id": "AN-2024-002",
+      "metric": "defect_rate",
+      "line": "라인-A",
+      "timestamp": "2024-03-18T14:00:00Z",
+      "anomaly_type": "급증",
+      "value_before": 0.5,
+      "value_after": 3.2,
+      "unit": "%",
+      "related_documents": ["WL-2024-003", "EM-2024-043"],
+      "context": "금형 온도가 설정값 220도에서 195도로 변경되어 표면 거칠기 불량 발생. 야간 작업자 실수로 추정.",
+      "root_cause": "설정 오류",
+      "action_taken": "온도 재조정 및 체크리스트 의무화",
+      "resolved": true
+    },
+    {
+      "id": "AN-2024-003",
+      "metric": "power_consumption",
+      "line": "라인-C",
+      "timestamp": "2024-03-20T11:00:00Z",
+      "anomaly_type": "급증",
+      "value_before": 250,
+      "value_after": 350,
+      "unit": "kWh",
+      "related_documents": ["WL-2024-004", "EM-2024-044"],
+      "context": "에어컴프레서 배관 노후화로 인한 공기 누출 발생. 과부하 작동으로 전력 소비 40% 증가.",
+      "root_cause": "설비 노후화",
+      "action_taken": "배관 수리 완료, 향후 전체 교체 계획",
+      "resolved": true
+    },
+    {
+      "id": "AN-2024-004",
+      "metric": "downtime",
+      "line": "라인-B",
+      "timestamp": "2024-03-16T00:15:00Z",
+      "anomaly_type": "증가",
+      "value_before": 0,
+      "value_after": 45,
+      "unit": "분",
+      "related_documents": ["WL-2024-002", "EM-2024-042"],
+      "context": "원자재 공급 지연으로 라인 가동 중단. 지게차 고장 및 공급업체 물류 차질이 복합적으로 발생.",
+      "root_cause": "물류 지연",
+      "action_taken": "임시 수동 운반으로 재가동",
+      "resolved": true
+    },
+    {
+      "id": "AN-2024-005",
+      "metric": "vibration",
+      "line": "CNC-B03",
+      "timestamp": "2024-03-17T13:30:00Z",
+      "anomaly_type": "점진적증가",
+      "value_before": 2.5,
+      "value_after": 8.3,
+      "unit": "mm/s",
+      "related_documents": ["ML-2024-016"],
+      "context": "스핀들 베어링 마모로 인한 진동 증가. 1주일간 점진적으로 수치 상승 후 긴급 수리 실시.",
+      "root_cause": "부품 마모",
+      "action_taken": "베어링 교체",
+      "resolved": true
+    }
+  ],
+  "metadata": {
+    "facility": "스마트 제조 1공장",
+    "location": "경기도 화성시",
+    "data_period": "2024-03-13 ~ 2024-03-21",
+    "lines": ["라인-A", "라인-B", "라인-C"],
+    "metrics_tracked": [
+      "production_rate",
+      "defect_rate",
+      "power_consumption",
+      "temperature",
+      "pressure",
+      "vibration",
+      "downtime",
+      "positioning_accuracy"
+    ],
+    "purpose": "RAG 기반 이상치 자동 주석 시스템 구축"
+  }
+}
