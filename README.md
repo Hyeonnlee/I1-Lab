@@ -1,4 +1,5 @@
 # I1-Lab
+
 실행순서
 1_normalization_agent.py
 2_query_agent.py
@@ -6,3 +7,4 @@ create_csv_data.py
 3_visualization_agent.py
 4_analysis_agent.py
 5_report_agent.py
+6_action_agent.py
