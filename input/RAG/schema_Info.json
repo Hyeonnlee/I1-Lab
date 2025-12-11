@@ -1,0 +1,337 @@
+{
+  "database_name": "manufacturing_db",
+  "description": "제조업 통합 데이터베이스 - 생산, 품질, 설비, 재고, 인력 관리",
+  "tables": [
+    {
+      "table_name": "production_orders",
+      "schema": "production",
+      "description": "생산 지시서 정보를 관리하는 테이블. 각 생산 오더의 계획 및 실적을 추적",
+      "columns": [
+        {"name": "order_id", "type": "VARCHAR(20)", "primary_key": true, "description": "생산지시 번호 (예: PO-2024-001234)"},
+        {"name": "product_id", "type": "VARCHAR(20)", "foreign_key": "products.product_id", "description": "생산 제품 ID"},
+        {"name": "line_id", "type": "VARCHAR(10)", "foreign_key": "production_lines.line_id", "description": "생산 라인 ID"},
+        {"name": "planned_quantity", "type": "INT", "description": "계획 생산 수량"},
+        {"name": "actual_quantity", "type": "INT", "description": "실제 생산 수량"},
+        {"name": "good_quantity", "type": "INT", "description": "양품 수량"},
+        {"name": "defect_quantity", "type": "INT", "description": "불량 수량"},
+        {"name": "planned_start_time", "type": "DATETIME", "description": "계획 시작 시간"},
+        {"name": "planned_end_time", "type": "DATETIME", "description": "계획 종료 시간"},
+        {"name": "actual_start_time", "type": "DATETIME", "description": "실제 시작 시간"},
+        {"name": "actual_end_time", "type": "DATETIME", "description": "실제 종료 시간"},
+        {"name": "order_status", "type": "VARCHAR(20)", "description": "상태 (planned, in_progress, completed, cancelled)"},
+        {"name": "priority", "type": "INT", "description": "우선순위 (1: 긴급, 2: 높음, 3: 보통)"},
+        {"name": "shift", "type": "VARCHAR(10)", "description": "근무 조 (day, evening, night)"},
+        {"name": "created_at", "type": "DATETIME", "description": "생성일시"}
+      ],
+      "indexes": ["idx_order_date", "idx_product_line", "idx_status"],
+      "relationships": ["products.product_id", "production_lines.line_id"]
+    },
+    {
+      "table_name": "products",
+      "schema": "production",
+      "description": "생산 제품 마스터 테이블. 제품 사양 및 생산 기준 정보 관리",
+      "columns": [
+        {"name": "product_id", "type": "VARCHAR(20)", "primary_key": true, "description": "제품 코드"},
+        {"name": "product_name", "type": "VARCHAR(200)", "description": "제품명"},
+        {"name": "product_type", "type": "VARCHAR(50)", "description": "제품 유형 (finished, semi_finished, component)"},
+        {"name": "category", "type": "VARCHAR(50)", "description": "제품 카테고리"},
+        {"name": "unit", "type": "VARCHAR(20)", "description": "단위 (EA, KG, M, L)"},
+        {"name": "standard_cycle_time", "type": "DECIMAL(10,2)", "description": "표준 사이클 타임 (초)"},
+        {"name": "standard_lot_size", "type": "INT", "description": "표준 로트 크기"},
+        {"name": "bom_id", "type": "VARCHAR(20)", "foreign_key": "bom_master.bom_id", "description": "BOM ID"},
+        {"name": "is_active", "type": "BOOLEAN", "description": "활성 여부"}
+      ],
+      "relationships": ["bom_master.bom_id", "production_orders.product_id"]
+    },
+    {
+      "table_name": "production_lines",
+      "schema": "production",
+      "description": "생산 라인 정보 테이블. 각 라인의 설비 구성 및 생산 능력 관리",
+      "columns": [
+        {"name": "line_id", "type": "VARCHAR(10)", "primary_key": true, "description": "라인 ID (예: L01, L02)"},
+        {"name": "line_name", "type": "VARCHAR(100)", "description": "라인명"},
+        {"name": "factory_id", "type": "VARCHAR(10)", "foreign_key": "factories.factory_id", "description": "공장 ID"},
+        {"name": "line_type", "type": "VARCHAR(50)", "description": "라인 유형 (assembly, machining, painting, packaging)"},
+        {"name": "capacity_per_hour", "type": "INT", "description": "시간당 생산 능력"},
+        {"name": "operating_hours", "type": "DECIMAL(4,2)", "description": "일일 가동 시간"},
+        {"name": "status", "type": "VARCHAR(20)", "description": "상태 (running, stopped, maintenance)"},
+        {"name": "efficiency_target", "type": "DECIMAL(5,2)", "description": "목표 효율 (%)"}
+      ],
+      "relationships": ["factories.factory_id", "equipment.line_id"]
+    },
+    {
+      "table_name": "factories",
+      "schema": "production",
+      "description": "공장 마스터 테이블",
+      "columns": [
+        {"name": "factory_id", "type": "VARCHAR(10)", "primary_key": true, "description": "공장 ID"},
+        {"name": "factory_name", "type": "VARCHAR(100)", "description": "공장명"},
+        {"name": "location", "type": "VARCHAR(200)", "description": "위치"},
+        {"name": "capacity", "type": "INT", "description": "총 생산 능력"}
+      ],
+      "relationships": ["production_lines.factory_id"]
+    },
+    {
+      "table_name": "equipment",
+      "schema": "facility",
+      "description": "설비 마스터 테이블. 개별 설비의 상세 정보 및 상태 관리",
+      "columns": [
+        {"name": "equipment_id", "type": "VARCHAR(20)", "primary_key": true, "description": "설비 ID"},
+        {"name": "equipment_name", "type": "VARCHAR(200)", "description": "설비명"},
+        {"name": "equipment_type", "type": "VARCHAR(50)", "description": "설비 유형 (CNC, robot, conveyor, press, injection)"},
+        {"name": "line_id", "type": "VARCHAR(10)", "foreign_key": "production_lines.line_id", "description": "소속 라인 ID"},
+        {"name": "manufacturer", "type": "VARCHAR(100)", "description": "제조사"},
+        {"name": "model", "type": "VARCHAR(100)", "description": "모델명"},
+        {"name": "install_date", "type": "DATE", "description": "설치일"},
+        {"name": "status", "type": "VARCHAR(20)", "description": "상태 (running, idle, breakdown, maintenance)"},
+        {"name": "last_maintenance_date", "type": "DATE", "description": "최근 정비일"},
+        {"name": "next_maintenance_date", "type": "DATE", "description": "다음 정비 예정일"}
+      ],
+      "relationships": ["production_lines.line_id", "equipment_logs.equipment_id", "maintenance_records.equipment_id"]
+    },
+    {
+      "table_name": "equipment_logs",
+      "schema": "facility",
+      "description": "설비 가동 이력 테이블. 실시간 설비 상태 및 가동 데이터 기록",
+      "columns": [
+        {"name": "log_id", "type": "BIGINT", "primary_key": true, "description": "로그 ID"},
+        {"name": "equipment_id", "type": "VARCHAR(20)", "foreign_key": "equipment.equipment_id", "description": "설비 ID"},
+        {"name": "log_time", "type": "DATETIME", "description": "기록 시간"},
+        {"name": "status", "type": "VARCHAR(20)", "description": "설비 상태"},
+        {"name": "running_time", "type": "INT", "description": "가동 시간 (분)"},
+        {"name": "idle_time", "type": "INT", "description": "대기 시간 (분)"},
+        {"name": "down_time", "type": "INT", "description": "비가동 시간 (분)"},
+        {"name": "down_reason", "type": "VARCHAR(100)", "description": "비가동 사유 코드"},
+        {"name": "cycle_count", "type": "INT", "description": "사이클 수"},
+        {"name": "power_consumption", "type": "DECIMAL(10,2)", "description": "전력 소비량 (kWh)"}
+      ],
+      "relationships": ["equipment.equipment_id", "downtime_reasons.reason_code"]
+    },
+    {
+      "table_name": "downtime_reasons",
+      "schema": "facility",
+      "description": "비가동 사유 코드 테이블",
+      "columns": [
+        {"name": "reason_code", "type": "VARCHAR(20)", "primary_key": true, "description": "사유 코드"},
+        {"name": "reason_name", "type": "VARCHAR(100)", "description": "사유명"},
+        {"name": "reason_category", "type": "VARCHAR(50)", "description": "카테고리 (planned, unplanned, setup, breakdown)"},
+        {"name": "is_planned", "type": "BOOLEAN", "description": "계획된 비가동 여부"}
+      ],
+      "relationships": ["equipment_logs.down_reason"]
+    },
+    {
+      "table_name": "maintenance_records",
+      "schema": "facility",
+      "description": "설비 정비 이력 테이블. 예방 정비 및 고장 수리 이력 관리",
+      "columns": [
+        {"name": "maintenance_id", "type": "VARCHAR(20)", "primary_key": true, "description": "정비 ID"},
+        {"name": "equipment_id", "type": "VARCHAR(20)", "foreign_key": "equipment.equipment_id", "description": "설비 ID"},
+        {"name": "maintenance_type", "type": "VARCHAR(30)", "description": "정비 유형 (preventive, corrective, predictive, breakdown)"},
+        {"name": "start_time", "type": "DATETIME", "description": "정비 시작 시간"},
+        {"name": "end_time", "type": "DATETIME", "description": "정비 종료 시간"},
+        {"name": "description", "type": "TEXT", "description": "정비 내용"},
+        {"name": "parts_used", "type": "TEXT", "description": "사용 부품"},
+        {"name": "cost", "type": "DECIMAL(12,2)", "description": "정비 비용"},
+        {"name": "technician_id", "type": "VARCHAR(20)", "foreign_key": "employees.employee_id", "description": "담당 기술자 ID"},
+        {"name": "result", "type": "VARCHAR(50)", "description": "결과 (completed, pending, failed)"}
+      ],
+      "relationships": ["equipment.equipment_id", "employees.employee_id"]
+    },
+    {
+      "table_name": "quality_inspections",
+      "schema": "quality",
+      "description": "품질 검사 결과 테이블. 공정 검사 및 최종 검사 결과 기록",
+      "columns": [
+        {"name": "inspection_id", "type": "VARCHAR(20)", "primary_key": true, "description": "검사 ID"},
+        {"name": "order_id", "type": "VARCHAR(20)", "foreign_key": "production_orders.order_id", "description": "생산지시 번호"},
+        {"name": "product_id", "type": "VARCHAR(20)", "foreign_key": "products.product_id", "description": "제품 ID"},
+        {"name": "lot_number", "type": "VARCHAR(30)", "description": "로트 번호"},
+        {"name": "inspection_type", "type": "VARCHAR(30)", "description": "검사 유형 (incoming, process, final, outgoing)"},
+        {"name": "inspection_time", "type": "DATETIME", "description": "검사 일시"},
+        {"name": "sample_size", "type": "INT", "description": "샘플 크기"},
+        {"name": "pass_quantity", "type": "INT", "description": "합격 수량"},
+        {"name": "fail_quantity", "type": "INT", "description": "불합격 수량"},
+        {"name": "result", "type": "VARCHAR(20)", "description": "판정 (pass, fail, conditional)"},
+        {"name": "inspector_id", "type": "VARCHAR(20)", "foreign_key": "employees.employee_id", "description": "검사자 ID"}
+      ],
+      "relationships": ["production_orders.order_id", "products.product_id", "employees.employee_id"]
+    },
+    {
+      "table_name": "defect_records",
+      "schema": "quality",
+      "description": "불량 상세 기록 테이블. 불량 유형별 발생 현황 추적",
+      "columns": [
+        {"name": "defect_id", "type": "VARCHAR(20)", "primary_key": true, "description": "불량 ID"},
+        {"name": "inspection_id", "type": "VARCHAR(20)", "foreign_key": "quality_inspections.inspection_id", "description": "검사 ID"},
+        {"name": "defect_code", "type": "VARCHAR(20)", "foreign_key": "defect_codes.defect_code", "description": "불량 코드"},
+        {"name": "defect_quantity", "type": "INT", "description": "불량 수량"},
+        {"name": "defect_location", "type": "VARCHAR(100)", "description": "불량 발생 위치/공정"},
+        {"name": "root_cause", "type": "VARCHAR(200)", "description": "원인"},
+        {"name": "action_taken", "type": "VARCHAR(200)", "description": "조치 내용"},
+        {"name": "detected_time", "type": "DATETIME", "description": "발견 시간"}
+      ],
+      "relationships": ["quality_inspections.inspection_id", "defect_codes.defect_code"]
+    },
+    {
+      "table_name": "defect_codes",
+      "schema": "quality",
+      "description": "불량 유형 코드 테이블",
+      "columns": [
+        {"name": "defect_code", "type": "VARCHAR(20)", "primary_key": true, "description": "불량 코드"},
+        {"name": "defect_name", "type": "VARCHAR(100)", "description": "불량명"},
+        {"name": "defect_category", "type": "VARCHAR(50)", "description": "불량 카테고리 (dimensional, surface, functional, material)"},
+        {"name": "severity", "type": "VARCHAR(20)", "description": "심각도 (critical, major, minor)"}
+      ],
+      "relationships": ["defect_records.defect_code"]
+    },
+    {
+      "table_name": "materials",
+      "schema": "inventory",
+      "description": "원자재 마스터 테이블",
+      "columns": [
+        {"name": "material_id", "type": "VARCHAR(20)", "primary_key": true, "description": "자재 ID"},
+        {"name": "material_name", "type": "VARCHAR(200)", "description": "자재명"},
+        {"name": "material_type", "type": "VARCHAR(50)", "description": "자재 유형 (raw, component, consumable, packaging)"},
+        {"name": "unit", "type": "VARCHAR(20)", "description": "단위"},
+        {"name": "unit_cost", "type": "DECIMAL(12,4)", "description": "단가"},
+        {"name": "supplier_id", "type": "VARCHAR(20)", "foreign_key": "suppliers.supplier_id", "description": "공급업체 ID"},
+        {"name": "lead_time", "type": "INT", "description": "리드타임 (일)"},
+        {"name": "safety_stock", "type": "INT", "description": "안전 재고"},
+        {"name": "reorder_point", "type": "INT", "description": "재주문점"}
+      ],
+      "relationships": ["suppliers.supplier_id", "inventory.material_id", "bom_details.material_id"]
+    },
+    {
+      "table_name": "inventory",
+      "schema": "inventory",
+      "description": "재고 현황 테이블. 자재 및 제품의 실시간 재고 관리",
+      "columns": [
+        {"name": "inventory_id", "type": "VARCHAR(20)", "primary_key": true, "description": "재고 ID"},
+        {"name": "material_id", "type": "VARCHAR(20)", "foreign_key": "materials.material_id", "description": "자재 ID (자재인 경우)"},
+        {"name": "product_id", "type": "VARCHAR(20)", "foreign_key": "products.product_id", "description": "제품 ID (제품인 경우)"},
+        {"name": "warehouse_id", "type": "VARCHAR(10)", "foreign_key": "warehouses.warehouse_id", "description": "창고 ID"},
+        {"name": "lot_number", "type": "VARCHAR(30)", "description": "로트 번호"},
+        {"name": "quantity", "type": "DECIMAL(12,2)", "description": "수량"},
+        {"name": "reserved_quantity", "type": "DECIMAL(12,2)", "description": "예약 수량"},
+        {"name": "available_quantity", "type": "DECIMAL(12,2)", "description": "가용 수량"},
+        {"name": "last_updated", "type": "DATETIME", "description": "최종 업데이트"}
+      ],
+      "relationships": ["materials.material_id", "products.product_id", "warehouses.warehouse_id"]
+    },
+    {
+      "table_name": "warehouses",
+      "schema": "inventory",
+      "description": "창고 마스터 테이블",
+      "columns": [
+        {"name": "warehouse_id", "type": "VARCHAR(10)", "primary_key": true, "description": "창고 ID"},
+        {"name": "warehouse_name", "type": "VARCHAR(100)", "description": "창고명"},
+        {"name": "warehouse_type", "type": "VARCHAR(30)", "description": "창고 유형 (raw_material, wip, finished_goods)"},
+        {"name": "factory_id", "type": "VARCHAR(10)", "foreign_key": "factories.factory_id", "description": "공장 ID"},
+        {"name": "capacity", "type": "INT", "description": "용량"}
+      ],
+      "relationships": ["factories.factory_id", "inventory.warehouse_id"]
+    },
+    {
+      "table_name": "suppliers",
+      "schema": "inventory",
+      "description": "공급업체 마스터 테이블",
+      "columns": [
+        {"name": "supplier_id", "type": "VARCHAR(20)", "primary_key": true, "description": "공급업체 ID"},
+        {"name": "supplier_name", "type": "VARCHAR(200)", "description": "업체명"},
+        {"name": "contact", "type": "VARCHAR(100)", "description": "담당자"},
+        {"name": "phone", "type": "VARCHAR(20)", "description": "연락처"},
+        {"name": "rating", "type": "DECIMAL(3,2)", "description": "업체 등급 (1-5)"},
+        {"name": "is_active", "type": "BOOLEAN", "description": "거래 여부"}
+      ],
+      "relationships": ["materials.supplier_id"]
+    },
+    {
+      "table_name": "bom_master",
+      "schema": "production",
+      "description": "BOM 마스터 테이블. 제품별 부품 구성 정보",
+      "columns": [
+        {"name": "bom_id", "type": "VARCHAR(20)", "primary_key": true, "description": "BOM ID"},
+        {"name": "product_id", "type": "VARCHAR(20)", "foreign_key": "products.product_id", "description": "제품 ID"},
+        {"name": "version", "type": "VARCHAR(10)", "description": "BOM 버전"},
+        {"name": "effective_date", "type": "DATE", "description": "적용 시작일"},
+        {"name": "expiry_date", "type": "DATE", "description": "적용 종료일"},
+        {"name": "status", "type": "VARCHAR(20)", "description": "상태 (active, inactive, draft)"}
+      ],
+      "relationships": ["products.product_id", "bom_details.bom_id"]
+    },
+    {
+      "table_name": "bom_details",
+      "schema": "production",
+      "description": "BOM 상세 테이블. 부품별 소요량 정보",
+      "columns": [
+        {"name": "bom_detail_id", "type": "VARCHAR(20)", "primary_key": true, "description": "상세 ID"},
+        {"name": "bom_id", "type": "VARCHAR(20)", "foreign_key": "bom_master.bom_id", "description": "BOM ID"},
+        {"name": "material_id", "type": "VARCHAR(20)", "foreign_key": "materials.material_id", "description": "자재 ID"},
+        {"name": "quantity_per", "type": "DECIMAL(10,4)", "description": "소요량"},
+        {"name": "unit", "type": "VARCHAR(20)", "description": "단위"},
+        {"name": "sequence", "type": "INT", "description": "조립 순서"}
+      ],
+      "relationships": ["bom_master.bom_id", "materials.material_id"]
+    },
+    {
+      "table_name": "employees",
+      "schema": "hr",
+      "description": "직원 정보 테이블",
+      "columns": [
+        {"name": "employee_id", "type": "VARCHAR(20)", "primary_key": true, "description": "직원 ID"},
+        {"name": "employee_name", "type": "VARCHAR(100)", "description": "직원명"},
+        {"name": "department_id", "type": "VARCHAR(10)", "foreign_key": "departments.department_id", "description": "부서 ID"},
+        {"name": "position", "type": "VARCHAR(50)", "description": "직급"},
+        {"name": "skill_level", "type": "VARCHAR(20)", "description": "기술 등급 (junior, intermediate, senior, expert)"},
+        {"name": "shift", "type": "VARCHAR(10)", "description": "근무조"},
+        {"name": "hire_date", "type": "DATE", "description": "입사일"},
+        {"name": "is_active", "type": "BOOLEAN", "description": "재직 여부"}
+      ],
+      "relationships": ["departments.department_id"]
+    },
+    {
+      "table_name": "departments",
+      "schema": "hr",
+      "description": "부서 정보 테이블",
+      "columns": [
+        {"name": "department_id", "type": "VARCHAR(10)", "primary_key": true, "description": "부서 ID"},
+        {"name": "department_name", "type": "VARCHAR(100)", "description": "부서명"},
+        {"name": "factory_id", "type": "VARCHAR(10)", "foreign_key": "factories.factory_id", "description": "공장 ID"}
+      ],
+      "relationships": ["factories.factory_id", "employees.department_id"]
+    },
+    {
+      "table_name": "work_orders",
+      "schema": "production",
+      "description": "작업 지시 테이블. 작업자별 상세 작업 내역",
+      "columns": [
+        {"name": "work_order_id", "type": "VARCHAR(20)", "primary_key": true, "description": "작업지시 ID"},
+        {"name": "order_id", "type": "VARCHAR(20)", "foreign_key": "production_orders.order_id", "description": "생산지시 번호"},
+        {"name": "employee_id", "type": "VARCHAR(20)", "foreign_key": "employees.employee_id", "description": "작업자 ID"},
+        {"name": "equipment_id", "type": "VARCHAR(20)", "foreign_key": "equipment.equipment_id", "description": "설비 ID"},
+        {"name": "process_step", "type": "INT", "description": "공정 순서"},
+        {"name": "start_time", "type": "DATETIME", "description": "시작 시간"},
+        {"name": "end_time", "type": "DATETIME", "description": "종료 시간"},
+        {"name": "output_quantity", "type": "INT", "description": "생산 수량"},
+        {"name": "status", "type": "VARCHAR(20)", "description": "상태"}
+      ],
+      "relationships": ["production_orders.order_id", "employees.employee_id", "equipment.equipment_id"]
+    },
+    {
+      "table_name": "energy_consumption",
+      "schema": "facility",
+      "description": "에너지 사용량 테이블. 설비/라인별 에너지 소비 추적",
+      "columns": [
+        {"name": "consumption_id", "type": "BIGINT", "primary_key": true, "description": "소비 ID"},
+        {"name": "equipment_id", "type": "VARCHAR(20)", "foreign_key": "equipment.equipment_id", "description": "설비 ID"},
+        {"name": "line_id", "type": "VARCHAR(10)", "foreign_key": "production_lines.line_id", "description": "라인 ID"},
+        {"name": "consumption_date", "type": "DATE", "description": "소비 일자"},
+        {"name": "electricity_kwh", "type": "DECIMAL(12,2)", "description": "전력 (kWh)"},
+        {"name": "gas_m3", "type": "DECIMAL(12,2)", "description": "가스 (m³)"},
+        {"name": "water_m3", "type": "DECIMAL(12,2)", "description": "용수 (m³)"},
+        {"name": "compressed_air_m3", "type": "DECIMAL(12,2)", "description": "압축공기 (m³)"}
+      ],
+      "relationships": ["equipment.equipment_id", "production_lines.line_id"]
+    }
+  ]
+}

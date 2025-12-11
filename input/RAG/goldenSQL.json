@@ -1,72 +1,166 @@
-[
-  {
-    "question": "지난 30일간 라인별 OEE 추이를 보여줘",
-    "intent": "추이",
-    "category": "설비효율",
-    "complexity": "medium",
-    "patterns": ["GROUP BY", "DATE_TRUNC", "다중 계산"],
-    "sql": "SELECT \n  DATE_TRUNC('day', timestamp) AS date,\n  line_id,\n  (SUM(actual_runtime)::FLOAT / NULLIF(SUM(planned_runtime), 0)) * \n  (SUM(actual_output)::FLOAT / NULLIF(SUM(standard_output), 0)) * \n  (SUM(good_output)::FLOAT / NULLIF(SUM(actual_output), 0)) * 100 AS oee\nFROM production_data\nWHERE timestamp >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY DATE_TRUNC('day', timestamp), line_id\nORDER BY date, line_id",
-    "explanation": "OEE는 가동률, 성능률, 양품률의 곱으로 계산됩니다. NULLIF를 사용하여 0으로 나누는 것을 방지합니다.",
-    "notes": "날짜별로 GROUP BY하여 추이를 확인할 수 있습니다."
-  },
-  {
-    "question": "이번 주 설비별 고장 횟수와 평균 수리 시간",
-    "intent": "비교",
-    "category": "설비신뢰성",
-    "complexity": "medium",
-    "patterns": ["GROUP BY", "COUNT", "AVG", "DATE_TRUNC"],
-    "sql": "SELECT \n  equipment_id,\n  equipment_name,\n  COUNT(DISTINCT failure_id) AS failure_count,\n  AVG(EXTRACT(EPOCH FROM (repair_end - repair_start)) / 3600) AS avg_repair_hours\nFROM equipment_failures ef\nJOIN equipment e ON ef.equipment_id = e.id\nWHERE DATE_TRUNC('week', failure_date) = DATE_TRUNC('week', CURRENT_DATE)\nGROUP BY equipment_id, equipment_name\nORDER BY failure_count DESC",
-    "explanation": "주간 단위로 설비별 고장 횟수와 평균 수리 시간을 집계합니다.",
-    "notes": "EXTRACT(EPOCH)를 사용하여 시간 차이를 초 단위로 변환한 후 시간 단위로 나눕니다."
-  },
-  {
-    "question": "상위 10개 불량 유형과 발생 빈도",
-    "intent": "비교",
-    "category": "품질",
-    "complexity": "low",
-    "patterns": ["GROUP BY", "ORDER BY", "LIMIT"],
-    "sql": "SELECT \n  defect_type,\n  COUNT(*) AS occurrence_count,\n  SUM(defect_quantity) AS total_defects,\n  ROUND(AVG(defect_quantity), 2) AS avg_defects_per_occurrence\nFROM quality_defects\nWHERE date >= CURRENT_DATE - INTERVAL '90 days'\nGROUP BY defect_type\nORDER BY total_defects DESC\nLIMIT 10",
-    "explanation": "파레토 분석을 위해 상위 불량 유형을 식별합니다.",
-    "notes": "80/20 법칙에 따라 상위 20%의 불량 유형이 전체 불량의 80%를 차지할 가능성이 높습니다."
-  },
-  {
-    "question": "제품별 월별 생산량과 수율 추이",
-    "intent": "추이",
-    "category": "생산성",
-    "complexity": "medium",
-    "patterns": ["GROUP BY", "DATE_TRUNC", "계산 필드"],
-    "sql": "SELECT \n  DATE_TRUNC('month', production_date) AS month,\n  product_id,\n  product_name,\n  SUM(total_output) AS total_production,\n  SUM(good_output) AS good_production,\n  ROUND((SUM(good_output)::FLOAT / NULLIF(SUM(total_output), 0)) * 100, 2) AS yield_rate\nFROM production_records pr\nJOIN products p ON pr.product_id = p.id\nWHERE production_date >= CURRENT_DATE - INTERVAL '12 months'\nGROUP BY DATE_TRUNC('month', production_date), product_id, product_name\nORDER BY month DESC, product_id",
-    "explanation": "월별로 제품별 생산량과 수율을 추적합니다.",
-    "notes": "수율 트렌드를 모니터링하여 품질 개선 기회를 식별할 수 있습니다."
-  },
-  {
-    "question": "특정 기간 동안 공정별 병목 구간 분석",
-    "intent": "분석",
-    "category": "공정분석",
-    "complexity": "high",
-    "patterns": ["WINDOW FUNCTION", "LAG", "CASE"],
-    "sql": "WITH process_times AS (\n  SELECT \n    work_order_id,\n    process_step,\n    start_time,\n    end_time,\n    EXTRACT(EPOCH FROM (end_time - start_time)) / 3600 AS duration_hours,\n    LAG(end_time) OVER (PARTITION BY work_order_id ORDER BY start_time) AS prev_end_time\n  FROM process_logs\n  WHERE start_time >= CURRENT_DATE - INTERVAL '30 days'\n),\nwaiting_times AS (\n  SELECT \n    work_order_id,\n    process_step,\n    duration_hours,\n    CASE \n      WHEN prev_end_time IS NOT NULL \n      THEN EXTRACT(EPOCH FROM (start_time - prev_end_time)) / 3600\n      ELSE 0\n    END AS wait_time_hours\n  FROM process_times\n)\nSELECT \n  process_step,\n  COUNT(*) AS order_count,\n  ROUND(AVG(duration_hours), 2) AS avg_process_time,\n  ROUND(AVG(wait_time_hours), 2) AS avg_wait_time,\n  ROUND(AVG(duration_hours + wait_time_hours), 2) AS avg_total_time\nFROM waiting_times\nGROUP BY process_step\nORDER BY avg_total_time DESC",
-    "explanation": "각 공정 단계의 처리 시간과 대기 시간을 분석하여 병목 구간을 식별합니다.",
-    "notes": "LAG 윈도우 함수를 사용하여 이전 공정의 종료 시간을 참조하고, 대기 시간을 계산합니다."
-  },
-  {
-    "question": "라인별 시간대별 생산량 히트맵 데이터",
-    "intent": "분포",
-    "category": "생산성",
-    "complexity": "medium",
-    "patterns": ["EXTRACT", "GROUP BY", "PIVOT"],
-    "sql": "SELECT \n  line_id,\n  EXTRACT(HOUR FROM timestamp) AS hour_of_day,\n  ROUND(AVG(hourly_output), 0) AS avg_output\nFROM production_data\nWHERE timestamp >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY line_id, EXTRACT(HOUR FROM timestamp)\nORDER BY line_id, hour_of_day",
-    "explanation": "시간대별 생산 패턴을 분석하여 최적 생산 시간대를 식별합니다.",
-    "notes": "이 데이터를 히트맵으로 시각화하면 생산 패턴을 쉽게 파악할 수 있습니다."
-  },
-  {
-    "question": "설비별 예방정비 준수율과 고장 상관관계",
-    "intent": "상관관계",
-    "category": "설비관리",
-    "complexity": "high",
-    "patterns": ["LEFT JOIN", "CASE", "계산 필드", "상관관계"],
-    "sql": "WITH maintenance_compliance AS (\n  SELECT \n    equipment_id,\n    COUNT(CASE WHEN completed_on_time = true THEN 1 END)::FLOAT / \n    NULLIF(COUNT(*), 0) * 100 AS compliance_rate\n  FROM preventive_maintenance\n  WHERE scheduled_date >= CURRENT_DATE - INTERVAL '12 months'\n  GROUP BY equipment_id\n),\nfailure_stats AS (\n  SELECT \n    equipment_id,\n    COUNT(*) AS failure_count,\n    SUM(downtime_hours) AS total_downtime\n  FROM equipment_failures\n  WHERE failure_date >= CURRENT_DATE - INTERVAL '12 months'\n  GROUP BY equipment_id\n)\nSELECT \n  e.equipment_id,\n  e.equipment_name,\n  COALESCE(mc.compliance_rate, 0) AS pm_compliance_rate,\n  COALESCE(fs.failure_count, 0) AS failure_count,\n  COALESCE(fs.total_downtime, 0) AS total_downtime_hours\nFROM equipment e\nLEFT JOIN maintenance_compliance mc ON e.equipment_id = mc.equipment_id\nLEFT JOIN failure_stats fs ON e.equipment_id = fs.equipment_id\nORDER BY pm_compliance_rate DESC",
-    "explanation": "예방정비 준수율과 설비 고장 간의 관계를 분석합니다.",
-    "notes": "일반적으로 예방정비 준수율이 높을수록 고장 빈도가 낮아집니다."
-  }
-]
+{
+  "golden_sql_category": "Manufacturing Golden SQL",
+  "description": "제조업 분석을 위한 최적화된 SQL 쿼리 모음",
+  "queries": [
+    {
+      "query_id": "GS001",
+      "natural_language": "이번 달 라인별 OEE를 알려줘",
+      "keywords": ["OEE", "설비종합효율", "라인별", "이번 달", "월간"],
+      "category": "생산성",
+      "sql": "SELECT pl.line_id, pl.line_name, ROUND((SUM(el.running_time)*1.0/NULLIF(SUM(el.running_time+el.idle_time+el.down_time),0))*(SUM(el.cycle_count)*AVG(p.standard_cycle_time)/NULLIF(SUM(el.running_time)*60,0))*(SUM(po.good_quantity)*1.0/NULLIF(SUM(po.actual_quantity),0))*100,2) AS oee_percentage FROM production_lines pl LEFT JOIN equipment e ON pl.line_id=e.line_id LEFT JOIN equipment_logs el ON e.equipment_id=el.equipment_id AND DATE_FORMAT(el.log_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') LEFT JOIN production_orders po ON pl.line_id=po.line_id AND DATE_FORMAT(po.actual_start_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') AND po.order_status='completed' LEFT JOIN products p ON po.product_id=p.product_id GROUP BY pl.line_id, pl.line_name ORDER BY oee_percentage DESC",
+      "explanation": "OEE = 가용성 × 성능 × 품질"
+    },
+    {
+      "query_id": "GS002",
+      "natural_language": "최근 일주일간 불량률이 높은 제품 TOP 10",
+      "keywords": ["불량률", "제품별", "일주일", "TOP 10", "상위", "불량", "품질"],
+      "category": "품질",
+      "sql": "SELECT p.product_id, p.product_name, SUM(po.defect_quantity) AS total_defects, SUM(po.actual_quantity) AS total_production, ROUND(SUM(po.defect_quantity)*100.0/NULLIF(SUM(po.actual_quantity),0),2) AS defect_rate FROM production_orders po JOIN products p ON po.product_id=p.product_id WHERE po.order_status='completed' AND po.actual_end_time>=DATE_SUB(CURDATE(),INTERVAL 7 DAY) GROUP BY p.product_id, p.product_name HAVING SUM(po.actual_quantity)>0 ORDER BY defect_rate DESC LIMIT 10",
+      "explanation": "완료된 오더 대상, 7일간 데이터 집계"
+    },
+    {
+      "query_id": "GS003",
+      "natural_language": "설비별 MTBF와 MTTR 현황",
+      "keywords": ["MTBF", "MTTR", "설비별", "고장", "수리시간", "평균고장간격"],
+      "category": "설비",
+      "sql": "WITH bs AS (SELECT equipment_id, COUNT(*) AS cnt, SUM(TIMESTAMPDIFF(MINUTE,start_time,end_time)) AS repair_min FROM maintenance_records WHERE maintenance_type IN ('breakdown','corrective') AND result='completed' GROUP BY equipment_id), rs AS (SELECT equipment_id, SUM(running_time) AS run_min FROM equipment_logs GROUP BY equipment_id) SELECT e.equipment_id, e.equipment_name, COALESCE(bs.cnt,0) AS breakdown_count, ROUND(rs.run_min/60.0/NULLIF(bs.cnt,0),1) AS mtbf_hours, ROUND(bs.repair_min/60.0/NULLIF(bs.cnt,0),1) AS mttr_hours FROM equipment e LEFT JOIN bs ON e.equipment_id=bs.equipment_id LEFT JOIN rs ON e.equipment_id=rs.equipment_id ORDER BY mtbf_hours",
+      "explanation": "CTE로 고장통계와 가동통계 분리 계산"
+    },
+    {
+      "query_id": "GS004",
+      "natural_language": "어제 생산실적 요약해줘",
+      "keywords": ["어제", "생산실적", "일일", "요약", "생산량"],
+      "category": "생산성",
+      "sql": "SELECT pl.line_name, p.product_name, COUNT(po.order_id) AS order_count, SUM(po.planned_quantity) AS planned_qty, SUM(po.actual_quantity) AS actual_qty, SUM(po.good_quantity) AS good_qty, ROUND(SUM(po.actual_quantity)*100.0/NULLIF(SUM(po.planned_quantity),0),1) AS achievement_rate FROM production_orders po JOIN production_lines pl ON po.line_id=pl.line_id JOIN products p ON po.product_id=p.product_id WHERE DATE(po.actual_start_time)=DATE_SUB(CURDATE(),INTERVAL 1 DAY) AND po.order_status='completed' GROUP BY pl.line_name, p.product_name ORDER BY pl.line_name, actual_qty DESC",
+      "explanation": "어제 날짜 기준 완료된 생산 실적 집계"
+    },
+    {
+      "query_id": "GS005",
+      "natural_language": "현재 재고가 안전재고 이하인 자재 목록",
+      "keywords": ["재고", "안전재고", "부족", "자재", "원자재", "재고부족"],
+      "category": "재고",
+      "sql": "SELECT m.material_id, m.material_name, m.material_type, s.supplier_name, i.quantity AS current_stock, m.safety_stock, m.reorder_point, m.lead_time, (m.safety_stock-i.quantity) AS shortage_qty FROM materials m JOIN inventory i ON m.material_id=i.material_id JOIN suppliers s ON m.supplier_id=s.supplier_id WHERE i.quantity<=m.safety_stock ORDER BY (i.quantity*1.0/NULLIF(m.safety_stock,0)) ASC",
+      "explanation": "안전재고 대비 현재고가 부족한 자재 조회"
+    },
+    {
+      "query_id": "GS006",
+      "natural_language": "이번 주 불량 유형별 발생 현황",
+      "keywords": ["불량유형", "불량코드", "이번 주", "주간", "불량현황"],
+      "category": "품질",
+      "sql": "SELECT dc.defect_code, dc.defect_name, dc.defect_category, dc.severity, COUNT(dr.defect_id) AS defect_count, SUM(dr.defect_quantity) AS total_qty FROM defect_records dr JOIN defect_codes dc ON dr.defect_code=dc.defect_code WHERE YEARWEEK(dr.detected_time,1)=YEARWEEK(CURDATE(),1) GROUP BY dc.defect_code, dc.defect_name, dc.defect_category, dc.severity ORDER BY total_qty DESC",
+      "explanation": "ISO 주차 기준(YEARWEEK)으로 금주 불량 집계"
+    },
+    {
+      "query_id": "GS007",
+      "natural_language": "설비 정비 예정 목록 (다음 주)",
+      "keywords": ["정비", "예방정비", "다음 주", "정비예정", "설비점검"],
+      "category": "설비",
+      "sql": "SELECT e.equipment_id, e.equipment_name, e.equipment_type, pl.line_name, e.last_maintenance_date, e.next_maintenance_date, DATEDIFF(e.next_maintenance_date,CURDATE()) AS days_until FROM equipment e JOIN production_lines pl ON e.line_id=pl.line_id WHERE e.next_maintenance_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY) ORDER BY e.next_maintenance_date",
+      "explanation": "다음 주 이내 정비 예정 설비 목록"
+    },
+    {
+      "query_id": "GS008",
+      "natural_language": "라인별 시간당 생산량(처리량) 현황",
+      "keywords": ["처리량", "시간당", "throughput", "생산능력", "UPH"],
+      "category": "생산성",
+      "sql": "SELECT pl.line_id, pl.line_name, pl.capacity_per_hour AS target_uph, ROUND(SUM(po.actual_quantity)/NULLIF(SUM(TIMESTAMPDIFF(HOUR,po.actual_start_time,po.actual_end_time)),0),1) AS actual_uph, ROUND(SUM(po.actual_quantity)/NULLIF(SUM(TIMESTAMPDIFF(HOUR,po.actual_start_time,po.actual_end_time)),0)*100.0/NULLIF(pl.capacity_per_hour,0),1) AS efficiency_pct FROM production_lines pl LEFT JOIN production_orders po ON pl.line_id=po.line_id AND po.order_status='completed' AND DATE(po.actual_start_time)>=DATE_SUB(CURDATE(),INTERVAL 7 DAY) GROUP BY pl.line_id, pl.line_name, pl.capacity_per_hour",
+      "explanation": "실제 처리량과 목표 대비 효율 계산"
+    },
+    {
+      "query_id": "GS009",
+      "natural_language": "비가동 사유별 분석 (이번 달)",
+      "keywords": ["비가동", "다운타임", "downtime", "사유별", "정지원인"],
+      "category": "설비",
+      "sql": "SELECT dr.reason_code, dr.reason_name, dr.reason_category, dr.is_planned, COUNT(*) AS occurrence_count, SUM(el.down_time) AS total_downtime_min, ROUND(SUM(el.down_time)*100.0/(SELECT SUM(down_time) FROM equipment_logs WHERE DATE_FORMAT(log_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')),1) AS pct_of_total FROM equipment_logs el JOIN downtime_reasons dr ON el.down_reason=dr.reason_code WHERE DATE_FORMAT(el.log_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') AND el.down_time>0 GROUP BY dr.reason_code, dr.reason_name, dr.reason_category, dr.is_planned ORDER BY total_downtime_min DESC",
+      "explanation": "비가동 사유별 빈도 및 시간 분석"
+    },
+    {
+      "query_id": "GS010",
+      "natural_language": "월별 생산달성률 추이 (최근 6개월)",
+      "keywords": ["월별", "추이", "생산달성률", "트렌드", "6개월"],
+      "category": "생산성",
+      "sql": "SELECT DATE_FORMAT(actual_start_time,'%Y-%m') AS month, SUM(planned_quantity) AS planned, SUM(actual_quantity) AS actual, ROUND(SUM(actual_quantity)*100.0/NULLIF(SUM(planned_quantity),0),1) AS achievement_rate FROM production_orders WHERE order_status='completed' AND actual_start_time>=DATE_SUB(CURDATE(),INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(actual_start_time,'%Y-%m') ORDER BY month",
+      "explanation": "6개월간 월별 생산달성률 추이"
+    },
+    {
+      "query_id": "GS011",
+      "natural_language": "작업자별 생산성 순위",
+      "keywords": ["작업자", "생산성", "순위", "인당생산량", "노동생산성"],
+      "category": "생산성",
+      "sql": "SELECT e.employee_id, e.employee_name, e.skill_level, d.department_name, COUNT(wo.work_order_id) AS work_count, SUM(wo.output_quantity) AS total_output, ROUND(SUM(wo.output_quantity)/NULLIF(SUM(TIMESTAMPDIFF(HOUR,wo.start_time,wo.end_time)),0),1) AS output_per_hour FROM employees e JOIN departments d ON e.department_id=d.department_id JOIN work_orders wo ON e.employee_id=wo.employee_id WHERE wo.status='completed' AND wo.start_time>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) GROUP BY e.employee_id, e.employee_name, e.skill_level, d.department_name HAVING SUM(TIMESTAMPDIFF(HOUR,wo.start_time,wo.end_time))>0 ORDER BY output_per_hour DESC",
+      "explanation": "최근 30일 작업자별 시간당 생산량 순위"
+    },
+    {
+      "query_id": "GS012",
+      "natural_language": "제품별 BOM 구성 조회",
+      "keywords": ["BOM", "자재명세서", "부품구성", "소요량", "제품구성"],
+      "category": "생산",
+      "sql": "SELECT p.product_id, p.product_name, bm.version, bd.sequence, m.material_id, m.material_name, m.material_type, bd.quantity_per, bd.unit, m.unit_cost, ROUND(bd.quantity_per*m.unit_cost,2) AS cost_per_product FROM products p JOIN bom_master bm ON p.bom_id=bm.bom_id AND bm.status='active' JOIN bom_details bd ON bm.bom_id=bd.bom_id JOIN materials m ON bd.material_id=m.material_id WHERE p.product_id=@product_id ORDER BY bd.sequence",
+      "explanation": "특정 제품의 활성 BOM 구성 조회"
+    },
+    {
+      "query_id": "GS013",
+      "natural_language": "에너지 사용량 분석 (라인별, 월별)",
+      "keywords": ["에너지", "전력", "사용량", "월별", "라인별", "전기"],
+      "category": "비용",
+      "sql": "SELECT DATE_FORMAT(ec.consumption_date,'%Y-%m') AS month, pl.line_id, pl.line_name, SUM(ec.electricity_kwh) AS total_kwh, SUM(ec.gas_m3) AS total_gas, SUM(ec.water_m3) AS total_water, ROUND(SUM(ec.electricity_kwh)/NULLIF(SUM(po.actual_quantity),0),3) AS kwh_per_unit FROM energy_consumption ec JOIN production_lines pl ON ec.line_id=pl.line_id LEFT JOIN production_orders po ON ec.line_id=po.line_id AND ec.consumption_date=DATE(po.actual_start_time) AND po.order_status='completed' WHERE ec.consumption_date>=DATE_SUB(CURDATE(),INTERVAL 3 MONTH) GROUP BY DATE_FORMAT(ec.consumption_date,'%Y-%m'), pl.line_id, pl.line_name ORDER BY month, pl.line_id",
+      "explanation": "3개월간 라인별 에너지 소비 및 단위당 소비량"
+    },
+    {
+      "query_id": "GS014",
+      "natural_language": "공급업체별 품질 평가",
+      "keywords": ["공급업체", "협력사", "품질", "평가", "입고검사", "수입검사"],
+      "category": "품질",
+      "sql": "SELECT s.supplier_id, s.supplier_name, s.rating, COUNT(DISTINCT qi.inspection_id) AS inspection_count, SUM(qi.sample_size) AS total_inspected, SUM(qi.pass_quantity) AS total_passed, ROUND(SUM(qi.pass_quantity)*100.0/NULLIF(SUM(qi.sample_size),0),2) AS pass_rate FROM suppliers s JOIN materials m ON s.supplier_id=m.supplier_id JOIN inventory i ON m.material_id=i.material_id JOIN quality_inspections qi ON i.lot_number=qi.lot_number AND qi.inspection_type='incoming' WHERE qi.inspection_time>=DATE_SUB(CURDATE(),INTERVAL 6 MONTH) GROUP BY s.supplier_id, s.supplier_name, s.rating ORDER BY pass_rate DESC",
+      "explanation": "6개월간 공급업체별 수입검사 합격률"
+    },
+    {
+      "query_id": "GS015",
+      "natural_language": "현재 진행 중인 생산 오더 현황",
+      "keywords": ["진행중", "현재", "생산현황", "실시간", "생산중"],
+      "category": "생산",
+      "sql": "SELECT po.order_id, p.product_name, pl.line_name, po.planned_quantity, COALESCE(po.actual_quantity,0) AS current_qty, ROUND(COALESCE(po.actual_quantity,0)*100.0/NULLIF(po.planned_quantity,0),1) AS progress_pct, po.planned_start_time, po.actual_start_time, po.planned_end_time, CASE WHEN CURTIME()>TIME(po.planned_end_time) THEN 'delayed' ELSE 'on_track' END AS status FROM production_orders po JOIN products p ON po.product_id=p.product_id JOIN production_lines pl ON po.line_id=pl.line_id WHERE po.order_status='in_progress' ORDER BY po.priority, po.planned_end_time",
+      "explanation": "진행중 오더의 진행률 및 지연 여부"
+    },
+    {
+      "query_id": "GS016",
+      "natural_language": "조별 생산실적 비교",
+      "keywords": ["조별", "shift", "교대", "주간조", "야간조", "생산비교"],
+      "category": "생산성",
+      "sql": "SELECT po.shift, COUNT(po.order_id) AS order_count, SUM(po.actual_quantity) AS total_production, SUM(po.good_quantity) AS good_qty, SUM(po.defect_quantity) AS defect_qty, ROUND(SUM(po.good_quantity)*100.0/NULLIF(SUM(po.actual_quantity),0),2) AS yield_rate, ROUND(SUM(po.actual_quantity)*100.0/NULLIF(SUM(po.planned_quantity),0),2) AS achievement_rate FROM production_orders po WHERE po.order_status='completed' AND DATE(po.actual_start_time)>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) GROUP BY po.shift ORDER BY total_production DESC",
+      "explanation": "최근 30일 조별 생산 실적 비교"
+    },
+    {
+      "query_id": "GS017",
+      "natural_language": "로트별 품질 이력 추적",
+      "keywords": ["로트", "추적", "이력", "traceability", "품질이력"],
+      "category": "품질",
+      "sql": "SELECT qi.lot_number, p.product_name, qi.inspection_type, qi.inspection_time, qi.sample_size, qi.pass_quantity, qi.fail_quantity, qi.result, e.employee_name AS inspector, dc.defect_name, dr.defect_quantity, dr.root_cause FROM quality_inspections qi JOIN products p ON qi.product_id=p.product_id LEFT JOIN employees e ON qi.inspector_id=e.employee_id LEFT JOIN defect_records dr ON qi.inspection_id=dr.inspection_id LEFT JOIN defect_codes dc ON dr.defect_code=dc.defect_code WHERE qi.lot_number=@lot_number ORDER BY qi.inspection_time",
+      "explanation": "특정 로트의 전체 품질검사 이력"
+    },
+    {
+      "query_id": "GS018",
+      "natural_language": "설비 가동률 순위 (하위 10개)",
+      "keywords": ["가동률", "하위", "낮은", "설비가동", "비효율"],
+      "category": "설비",
+      "sql": "SELECT e.equipment_id, e.equipment_name, pl.line_name, e.status AS current_status, SUM(el.running_time) AS running_min, SUM(el.idle_time) AS idle_min, SUM(el.down_time) AS down_min, ROUND(SUM(el.running_time)*100.0/NULLIF(SUM(el.running_time+el.idle_time+el.down_time),0),2) AS availability_pct FROM equipment e JOIN production_lines pl ON e.line_id=pl.line_id LEFT JOIN equipment_logs el ON e.equipment_id=el.equipment_id AND el.log_time>=DATE_SUB(CURDATE(),INTERVAL 30 DAY) GROUP BY e.equipment_id, e.equipment_name, pl.line_name, e.status ORDER BY availability_pct ASC LIMIT 10",
+      "explanation": "가동률이 낮은 하위 10개 설비"
+    },
+    {
+      "query_id": "GS019",
+      "natural_language": "자재 소요량 계산 (생산계획 기준)",
+      "keywords": ["자재소요", "MRP", "소요량", "생산계획", "필요자재"],
+      "category": "재고",
+      "sql": "SELECT m.material_id, m.material_name, m.unit, SUM(bd.quantity_per*po.planned_quantity) AS required_qty, MAX(i.available_quantity) AS available_qty, SUM(bd.quantity_per*po.planned_quantity)-MAX(i.available_quantity) AS shortage_qty, m.lead_time, s.supplier_name FROM production_orders po JOIN bom_master bm ON po.product_id=bm.product_id AND bm.status='active' JOIN bom_details bd ON bm.bom_id=bd.bom_id JOIN materials m ON bd.material_id=m.material_id LEFT JOIN inventory i ON m.material_id=i.material_id LEFT JOIN suppliers s ON m.supplier_id=s.supplier_id WHERE po.order_status='planned' AND po.planned_start_time BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY) GROUP BY m.material_id, m.material_name, m.unit, m.lead_time, s.supplier_name HAVING SUM(bd.quantity_per*po.planned_quantity)>MAX(i.available_quantity)",
+      "explanation": "향후 7일 계획 대비 부족 자재 산출"
+    },
+    {
+      "query_id": "GS020",
+      "natural_language": "월간 KPI 대시보드 요약",
+      "keywords": ["KPI", "대시보드", "월간", "요약", "종합현황"],
+      "category": "종합",
+      "sql": "SELECT '생산달성률' AS kpi_name, ROUND(SUM(actual_quantity)*100.0/NULLIF(SUM(planned_quantity),0),1) AS value, '%' AS unit FROM production_orders WHERE order_status='completed' AND DATE_FORMAT(actual_start_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') UNION ALL SELECT '수율', ROUND(SUM(good_quantity)*100.0/NULLIF(SUM(actual_quantity),0),1), '%' FROM production_orders WHERE order_status='completed' AND DATE_FORMAT(actual_start_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') UNION ALL SELECT '불량률', ROUND(SUM(defect_quantity)*100.0/NULLIF(SUM(actual_quantity),0),2), '%' FROM production_orders WHERE order_status='completed' AND DATE_FORMAT(actual_start_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') UNION ALL SELECT '납기준수율', ROUND(COUNT(CASE WHEN actual_end_time<=planned_end_time THEN 1 END)*100.0/COUNT(*),1), '%' FROM production_orders WHERE order_status='completed' AND DATE_FORMAT(actual_start_time,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m')",
+      "explanation": "주요 KPI 한눈에 보기 (UNION으로 결합)"
+    }
+  ]
+}
