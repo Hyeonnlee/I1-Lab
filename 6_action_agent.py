@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 load_dotenv()
 api_token = os.getenv("HUGGINGFACE_API_KEY")
 
-
 class ActionAgent:
     """리포트를 읽고 사용자별 맞춤 액션을 제안하는 에이전트"""
     
